@@ -1,6 +1,10 @@
-const CACHE = 'tijdtracker-v1';
-const ASSETS = ['/tijdtracker/index.html', '/tijdtracker/manifest.json'];
+const CACHE = 'tijdtracker-v2';
+const ASSETS = [
+  '/tijdtracker/index.html',
+  '/tijdtracker/manifest.json'
+];
 
+// Install: cache assets
 self.addEventListener('install', e => {
   e.waitUntil(
     caches.open(CACHE).then(cache => cache.addAll(ASSETS))
@@ -8,6 +12,7 @@ self.addEventListener('install', e => {
   self.skipWaiting();
 });
 
+// Activate: delete old caches immediately
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys().then(keys =>
@@ -17,8 +22,16 @@ self.addEventListener('activate', e => {
   self.clients.claim();
 });
 
+// Fetch: network first, fall back to cache
 self.addEventListener('fetch', e => {
   e.respondWith(
-    caches.match(e.request).then(cached => cached || fetch(e.request))
+    fetch(e.request)
+      .then(response => {
+        // Update cache with fresh response
+        const clone = response.clone();
+        caches.open(CACHE).then(cache => cache.put(e.request, clone));
+        return response;
+      })
+      .catch(() => caches.match(e.request))
   );
 });
