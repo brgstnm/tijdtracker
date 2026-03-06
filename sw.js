@@ -1,5 +1,5 @@
 const CACHE = 'tijdtracker-v1';
-const ASSETS = ['/index.html', '/manifest.json'];
+const ASSETS = ['/tijdtracker/index.html', '/tijdtracker/manifest.json'];
 
 self.addEventListener('install', e => {
   e.waitUntil(

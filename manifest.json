@@ -2,7 +2,7 @@
   "name": "Tijdtracker",
   "short_name": "Tijdtracker",
   "description": "Halfuur tijdregistratie per week",
-  "start_url": "/index.html",
+  "start_url": "/tijdtracker/index.html",
   "display": "standalone",
   "background_color": "#0a0a0f",
   "theme_color": "#0a0a0f",
