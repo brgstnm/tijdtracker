@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Tijdtracker">
+<meta name="theme-color" content="#0a0a0f">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Tijdtracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Fraunces:ital,wght@0,200;0,400;0,700;1,200;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f; --surface: #13131a; --surface2: #1c1c27;
+    --border: #2a2a3a; --text: #e8e6f0; --muted: #6b6880; --accent: #c8b8ff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body { font-family: 'DM Mono', monospace; background: var(--bg); color: var(--text); min-height: 100vh; overflow-x: hidden; }
+
+  header { position: sticky; top: 0; z-index: 100; background: var(--bg); border-bottom: 1px solid var(--border); padding: 12px 16px 10px; }
+  .header-top { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  h1 { font-family: 'Fraunces', serif; font-weight: 200; font-size: 22px; letter-spacing: -0.5px; flex: 1; }
+  h1 em { font-style: italic; color: var(--accent); }
+  .week-nav { display: flex; align-items: center; gap: 8px; }
+  .week-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; min-width: 44px; text-align: center; }
+  .nav-btn { background: var(--surface); border: 1px solid var(--border); color: var(--text); width: 28px; height: 28px; border-radius: 6px; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; }
+  .nav-btn:active { background: var(--surface2); }
+
+  .tabs { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab { flex-shrink: 0; padding: 5px 14px; border-radius: 20px; font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 0.5px; cursor: pointer; border: 1px solid var(--border); background: transparent; color: var(--muted); transition: all 0.15s; }
+  .tab.active { background: var(--surface2); color: var(--text); border-color: var(--accent); }
+
+  main { padding: 12px 16px 100px; }
+  .view { display: none; }
+  .view.active { display: block; }
+
+  /* WEEK VIEW */
+  .day-row { margin-bottom: 10px; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .day-row-header { display: flex; align-items: center; gap: 8px; padding: 8px 10px 7px; background: var(--surface); cursor: pointer; user-select: none; }
+  .day-row-header:active { background: var(--surface2); }
+  .day-name { font-size: 12px; font-weight: 500; color: var(--text); text-transform: uppercase; letter-spacing: 1px; width: 24px; flex-shrink: 0; }
+  .day-date { font-size: 10px; color: var(--muted); flex: 1; }
+  .day-today-badge { font-size: 9px; background: var(--accent); color: var(--bg); padding: 2px 6px; border-radius: 10px; }
+  .day-hours { font-size: 10px; color: var(--muted); }
+  .day-arrow { font-size: 13px; color: var(--muted); }
+
+  .time-blocks { display: flex; height: 20px; gap: 1px; background: var(--border); }
+  .time-block { flex: 1; cursor: pointer; min-width: 0; transition: filter 0.1s; }
+  .time-block:active { filter: brightness(1.6); }
+
+  /* DAY VIEW */
+  .back-btn { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted); cursor: pointer; margin-bottom: 10px; padding: 4px 0; }
+  .back-btn:active { color: var(--text); }
+  .day-view-title { font-family: 'Fraunces', serif; font-style: italic; font-weight: 200; font-size: 19px; color: var(--accent); margin-bottom: 14px; }
+
+  /* Day nav arrows */
+  .day-nav { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
+  .day-nav-btn { background: var(--surface); border: 1px solid var(--border); color: var(--text); width: 32px; height: 32px; border-radius: 6px; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .day-nav-btn:active { background: var(--surface2); }
+  .day-nav-label { flex: 1; text-align: center; font-family: 'Fraunces', serif; font-style: italic; font-weight: 200; font-size: 17px; color: var(--accent); }
+
+  .hour-group { margin-bottom: 3px; }
+  .hour-label { font-size: 10px; color: var(--muted); margin-bottom: 2px; padding-left: 2px; }
+  .slots-row { display: flex; gap: 2px; }
+  .slot { flex: 1; height: 46px; border-radius: 6px; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 1px solid var(--border); transition: all 0.12s; position: relative; gap: 2px; }
+  .slot:active { transform: scale(0.94); }
+  .slot .slot-icon { font-size: 18px; line-height: 1; }
+  .slot .slot-time { font-size: 8px; color: rgba(255,255,255,0.3); }
+
+  /* LEGEND */
+  .legend { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
+  .legend-item { display: flex; align-items: center; gap: 5px; font-size: 10px; color: var(--muted); padding: 3px 7px; border-radius: 4px; }
+  .legend-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+
+  /* ANALYSE */
+  .total-card { text-align: center; padding: 20px 16px; background: var(--surface); border-radius: 10px; margin-bottom: 16px; }
+  .total-num { font-family: 'Fraunces', serif; font-size: 48px; font-weight: 200; color: var(--accent); line-height: 1; }
+  .total-label { font-size: 11px; color: var(--muted); margin-top: 4px; }
+  .stat-title { font-family: 'Fraunces', serif; font-style: italic; font-weight: 200; font-size: 18px; color: var(--accent); margin-bottom: 12px; }
+  .bar-list { display: flex; flex-direction: column; gap: 9px; }
+  .bar-item { display: flex; align-items: center; gap: 8px; }
+  .bar-name { font-size: 10px; color: var(--muted); width: 105px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bar-track { flex: 1; height: 14px; background: var(--surface); border-radius: 3px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 3px; width: 0%; transition: width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); }
+  .bar-val { font-size: 10px; color: var(--text); width: 38px; text-align: right; flex-shrink: 0; }
+
+  /* PICKER */
+  .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 190; opacity: 0; pointer-events: none; transition: opacity 0.25s; }
+  .overlay.active { opacity: 1; pointer-events: all; }
+  .cat-picker { position: fixed; bottom: 0; left: 0; right: 0; background: var(--surface); border-top: 1px solid var(--border); padding: 12px 16px 32px; z-index: 200; transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1); border-radius: 16px 16px 0 0; }
+  .cat-picker.open { transform: translateY(0); }
+  .picker-handle { width: 36px; height: 4px; background: var(--border); border-radius: 2px; margin: 0 auto 12px; }
+  .picker-title { font-family: 'Fraunces', serif; font-weight: 200; font-size: 14px; color: var(--muted); margin-bottom: 12px; text-align: center; }
+  .cat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; }
+  .cat-btn { padding: 10px 6px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface2); color: var(--text); font-family: 'DM Mono', monospace; font-size: 10px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 5px; transition: all 0.12s; }
+  .cat-btn:active { transform: scale(0.94); }
+  .cat-btn .cat-icon { font-size: 20px; }
+  .cat-clear { grid-column: 1 / -1; background: transparent; color: var(--muted); padding: 9px; font-size: 11px; }
+
+  .today-btn { position: fixed; bottom: 20px; right: 16px; background: var(--accent); color: var(--bg); border: none; border-radius: 20px; padding: 9px 16px; font-family: 'DM Mono', monospace; font-size: 11px; font-weight: 500; cursor: pointer; z-index: 150; letter-spacing: 0.5px; box-shadow: 0 4px 20px rgba(200,184,255,0.3); }
+  .today-btn:active { transform: scale(0.95); }
+
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-top">
+    <h1>tijd<em>tracker</em></h1>
+    <div class="week-nav">
+      <button class="nav-btn" id="prevWeek">‹</button>
+      <span class="week-label" id="weekLabel">wk —</span>
+      <button class="nav-btn" id="nextWeek">›</button>
+    </div>
+  </div>
+  <div class="tabs">
+    <button class="tab active" data-view="week">week</button>
+    <button class="tab" data-view="day">dag</button>
+    <button class="tab" data-view="analyse">analyse</button>
+  </div>
+</header>
+
+<main>
+  <div class="view active" id="weekView">
+    <div id="weekRows"></div>
+    <div class="legend" id="legend"></div>
+  </div>
+
+  <div class="view" id="dayView">
+    <div class="back-btn" id="backBtn">← week</div>
+    <div class="day-nav">
+      <button class="day-nav-btn" id="prevDay">‹</button>
+      <div class="day-nav-label" id="dayNavLabel"></div>
+      <button class="day-nav-btn" id="nextDay">›</button>
+    </div>
+    <div id="dayTimeline"></div>
+  </div>
+
+  <div class="view" id="analyseView">
+    <div class="total-card">
+      <div class="total-num" id="totalHours">0</div>
+      <div class="total-label">uur bijgehouden deze week</div>
+    </div>
+    <div class="stat-title">verdeling</div>
+    <div class="bar-list" id="barList"></div>
+  </div>
+</main>
+
+<div class="overlay" id="overlay"></div>
+<div class="cat-picker" id="catPicker">
+  <div class="picker-handle"></div>
+  <div class="picker-title" id="pickerTitle">kies categorie</div>
+  <div class="cat-grid" id="catGrid"></div>
+</div>
+
+<button class="today-btn" id="todayBtn">→ vandaag</button>
+
+<script>
+const CATS = [
+  { id: 'slaap',     label: 'Slaap',        icon: '🌙', color: '#4a6fa5' },
+  { id: 'routine',   label: 'Routine',       icon: '🚿', color: '#7a8fa0' },
+  { id: 'werk',      label: 'Werk',          icon: '💼', color: '#5b8a6f' },
+  { id: 'reis',      label: 'Reistijd',      icon: '🚂', color: '#8a7a5b' },
+  { id: 'foto',      label: 'Fotografie',    icon: '📷', color: '#c17a5b' },
+  { id: 'sidewerk',	 label: 'Sidewerk',     icon: '🗞', color: '#9b5bc1' },
+  { id: 'admin',     label: 'Administratie', icon: '📋', color: '#5b7ac1' },
+  { id: 'sport',     label: 'Sport',         icon: '🏃', color: '#5bc17a' },
+  { id: 'sociaal',   label: 'Sociaal',       icon: '👥', color: '#c15b8a' },
+  { id: 'lezen',     label: 'Lezen',         icon: '📖', color: '#8a5bc1' },
+  { id: 'schermen',  label: 'Schermen/TV',   icon: '📺', color: '#5b9ac1' },
+  { id: 'vrij',      label: 'Vrije tijd',    icon: '☁️',  color: '#a0a060' },
+];
+const SHORT = ['ma','di','wo','do','vr','za','zo'];
+const LONG  = ['Maandag','Dinsdag','Woensdag','Donderdag','Vrijdag','Zaterdag','Zondag'];
+
+let weekOffset = 0, dayIdx = 0, view = 'week', pending = null;
+
+function dayKey(i, off = weekOffset) {
+  const d = new Date(), dow = d.getDay() || 7;
+  d.setDate(d.getDate() - dow + 1 + i + off * 7);
+  return d.toISOString().slice(0,10);
+}
+function weekNum(key) {
+  const d = new Date(key + 'T12:00:00');
+  const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  t.setUTCDate(t.getUTCDate() + 4 - (t.getUTCDay()||7));
+  return Math.ceil((((t - new Date(Date.UTC(t.getUTCFullYear(),0,1)))/86400000)+1)/7);
+}
+function load(key) {
+  try { return JSON.parse(localStorage.getItem('tt_'+key)) || new Array(48).fill(null); }
+  catch { return new Array(48).fill(null); }
+}
+function save(key, s) { localStorage.setItem('tt_'+key, JSON.stringify(s)); }
+function cat(id) { return CATS.find(c => c.id === id); }
+
+// ---- WEEK ----
+function renderWeek() {
+  const today = new Date().toISOString().slice(0,10);
+  const cont = document.getElementById('weekRows');
+  cont.innerHTML = '';
+
+  SHORT.forEach((d, i) => {
+    const key = dayKey(i);
+    const slots = load(key);
+    const filled = slots.filter(Boolean).length;
+    const isToday = key === today;
+
+    const row = document.createElement('div');
+    row.className = 'day-row';
+
+    const hdr = document.createElement('div');
+    hdr.className = 'day-row-header';
+    hdr.innerHTML = `
+      <span class="day-name">${d}</span>
+      <span class="day-date">${key.slice(5).replace('-','/')}</span>
+      ${isToday ? '<span class="day-today-badge">vandaag</span>' : ''}
+      <span class="day-hours">${filled > 0 ? (filled*0.5).toFixed(1)+'u' : ''}</span>
+      <span class="day-arrow">›</span>
+    `;
+    hdr.addEventListener('click', () => { dayIdx = i; switchView('day'); });
+    row.appendChild(hdr);
+
+    const bar = document.createElement('div');
+    bar.className = 'time-blocks';
+    slots.forEach((c, si) => {
+      const b = document.createElement('div');
+      b.className = 'time-block';
+      b.style.background = c ? (cat(c)?.color || '#333') : '#1c1c27';
+      b.addEventListener('click', e => { e.stopPropagation(); dayIdx = i; switchView('day', si); });
+      bar.appendChild(b);
+    });
+    row.appendChild(bar);
+    cont.appendChild(row);
+  });
+
+  document.getElementById('weekLabel').textContent = 'wk ' + String(weekNum(dayKey(0))).padStart(2,'0');
+  renderLegend();
+}
+
+function renderLegend() {
+  const l = document.getElementById('legend');
+  l.innerHTML = '';
+  CATS.forEach(c => {
+    const item = document.createElement('div');
+    item.className = 'legend-item';
+    item.innerHTML = `<div class="legend-dot" style="background:${c.color}"></div>${c.label}`;
+    l.appendChild(item);
+  });
+}
+
+// ---- DAY ----
+function renderDay(scrollTo = null) {
+  const key = dayKey(dayIdx);
+  const slots = load(key);
+  const today = new Date().toISOString().slice(0,10);
+
+  // Update nav label
+  document.getElementById('dayNavLabel').textContent =
+    LONG[dayIdx] + ' ' + key.slice(5).replace('-','/') + (key === today ? ' · vandaag' : '');
+  document.querySelector('[data-view="day"]').textContent = SHORT[dayIdx];
+
+  const tl = document.getElementById('dayTimeline');
+  tl.innerHTML = '';
+
+  for (let h = 0; h < 24; h++) {
+    const grp = document.createElement('div');
+    grp.className = 'hour-group';
+    grp.id = 'h' + h;
+
+    const lbl = document.createElement('div');
+    lbl.className = 'hour-label';
+    lbl.textContent = String(h).padStart(2,'0') + ':00';
+    grp.appendChild(lbl);
+
+    const row = document.createElement('div');
+    row.className = 'slots-row';
+
+    [0,1].forEach(half => {
+      const si = h*2+half;
+      const c = slots[si] ? cat(slots[si]) : null;
+      const slot = document.createElement('div');
+      slot.className = 'slot';
+      slot.id = 's'+si;
+      slot.style.background = c ? c.color+'44' : 'var(--surface)';
+      slot.style.borderColor = c ? c.color+'99' : 'var(--border)';
+      if (c) { const ic = document.createElement('div'); ic.className = 'slot-icon'; ic.textContent = c.icon; slot.appendChild(ic); }
+      const tl2 = document.createElement('div');
+      tl2.className = 'slot-time';
+      tl2.textContent = String(h).padStart(2,'0')+':'+(half===0?'00':'30');
+      slot.appendChild(tl2);
+      slot.addEventListener('click', () => openPicker(key, si));
+      row.appendChild(slot);
+    });
+
+    grp.appendChild(row);
+    tl.appendChild(grp);
+  }
+
+  // Scroll
+  setTimeout(() => {
+    if (scrollTo !== null) {
+      document.getElementById('s'+scrollTo)?.scrollIntoView({behavior:'smooth', block:'center'});
+    } else if (key === new Date().toISOString().slice(0,10)) {
+      const h = Math.max(0, new Date().getHours() - 1);
+      document.getElementById('h'+h)?.scrollIntoView({behavior:'smooth', block:'start'});
+    } else {
+      tl.scrollTop = 0;
+    }
+  }, 60);
+}
+
+// ---- PICKER ----
+function openPicker(key, si) {
+  pending = { key, si };
+  const h = Math.floor(si/2), m = si%2===0?'00':'30';
+  document.getElementById('pickerTitle').textContent =
+    LONG[dayIdx] + ' · ' + String(h).padStart(2,'0') + ':' + m;
+
+  const current = load(key)[si];
+  const grid = document.getElementById('catGrid');
+  grid.innerHTML = '';
+
+  CATS.forEach(c => {
+    const btn = document.createElement('button');
+    btn.className = 'cat-btn';
+    btn.style.borderColor = c.color + (current===c.id ? 'ee' : '44');
+    btn.style.background = current===c.id ? c.color+'33' : 'var(--surface2)';
+    btn.innerHTML = `<span class="cat-icon">${c.icon}</span><span>${c.label}</span>`;
+    btn.addEventListener('click', () => assign(c.id));
+    grid.appendChild(btn);
+  });
+
+  const clr = document.createElement('button');
+  clr.className = 'cat-btn cat-clear';
+  clr.textContent = '✕ wissen';
+  clr.addEventListener('click', () => assign(null));
+  grid.appendChild(clr);
+
+  document.getElementById('catPicker').classList.add('open');
+  document.getElementById('overlay').classList.add('active');
+}
+
+function assign(catId) {
+  if (!pending) return;
+  const s = load(pending.key);
+  s[pending.si] = catId;
+  save(pending.key, s);
+  closePicker();
+  if (view === 'week') renderWeek();
+  else renderDay();
+}
+
+function closePicker() {
+  document.getElementById('catPicker').classList.remove('open');
+  document.getElementById('overlay').classList.remove('active');
+  pending = null;
+}
+
+// ---- ANALYSE ----
+function renderAnalyse() {
+  const totals = Object.fromEntries(CATS.map(c => [c.id, 0]));
+  let total = 0;
+  for (let i = 0; i < 7; i++) {
+    load(dayKey(i)).forEach(c => { if (c && totals[c]!==undefined) { totals[c]++; total++; } });
+  }
+  document.getElementById('totalHours').textContent = (total*0.5).toFixed(1);
+
+  const sorted = CATS.map(c => ({...c, n: totals[c.id]})).filter(c => c.n>0).sort((a,b)=>b.n-a.n);
+  const mx = sorted[0]?.n || 1;
+  const list = document.getElementById('barList');
+  list.innerHTML = '';
+  sorted.forEach(c => {
+    const el = document.createElement('div');
+    el.className = 'bar-item';
+    el.innerHTML = `<div class="bar-name">${c.icon} ${c.label}</div><div class="bar-track"><div class="bar-fill" style="background:${c.color}" data-w="${(c.n/mx*100).toFixed(1)}%"></div></div><div class="bar-val">${(c.n*0.5).toFixed(1)}u</div>`;
+    list.appendChild(el);
+  });
+  requestAnimationFrame(() => {
+    list.querySelectorAll('.bar-fill').forEach(el => { el.style.width = el.dataset.w; });
+  });
+}
+
+// ---- SWITCH VIEW ----
+function switchView(v, scrollTo = null) {
+  view = v;
+  document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+  const map = { week:'weekView', day:'dayView', analyse:'analyseView' };
+  document.getElementById(map[v]).classList.add('active');
+  document.querySelector(`[data-view="${v}"]`).classList.add('active');
+  if (v==='week') renderWeek();
+  else if (v==='day') renderDay(scrollTo);
+  else renderAnalyse();
+}
+
+// ---- EVENTS ----
+document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => switchView(t.dataset.view)));
+document.getElementById('prevWeek').addEventListener('click', () => { weekOffset--; view==='week'?renderWeek():renderDay(); });
+document.getElementById('nextWeek').addEventListener('click', () => { weekOffset++; view==='week'?renderWeek():renderDay(); });
+document.getElementById('prevDay').addEventListener('click', () => {
+  dayIdx = (dayIdx - 1 + 7) % 7; renderDay();
+});
+document.getElementById('nextDay').addEventListener('click', () => {
+  dayIdx = (dayIdx + 1) % 7; renderDay();
+});
+document.getElementById('backBtn').addEventListener('click', () => switchView('week'));
+document.getElementById('todayBtn').addEventListener('click', () => {
+  weekOffset = 0; dayIdx = (new Date().getDay()+6)%7; switchView('day');
+});
+document.getElementById('overlay').addEventListener('click', closePicker);
+
+// ---- INIT ----
+renderWeek();
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
+</script>
+</body>
+</html>
