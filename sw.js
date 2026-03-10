@@ -1,4 +1,4 @@
-const CACHE = 'tijdtracker-v2';
+const CACHE = 'tijdtracker-v3';
 const ASSETS = [
   '/tijdtracker/index.html',
   '/tijdtracker/manifest.json'

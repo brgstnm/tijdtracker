@@ -179,18 +179,16 @@
 
 <script>
 const CATS = [
-  { id: 'slaap',     label: 'Slaap',        icon: '🌙', color: '#4a6fa5' },
-  { id: 'routine',   label: 'Routine',       icon: '🚿', color: '#7a8fa0' },
-  { id: 'werk',      label: 'Werk',          icon: '💼', color: '#5b8a6f' },
-  { id: 'reis',      label: 'Reistijd',      icon: '🚂', color: '#8a7a5b' },
-  { id: 'foto',      label: 'Fotografie',    icon: '📷', color: '#c17a5b' },
-  { id: 'sidewerk',	 label: 'Sidewerk',     icon: '🗞', color: '#9b5bc1' },
-  { id: 'admin',     label: 'Administratie', icon: '📋', color: '#5b7ac1' },
-  { id: 'sport',     label: 'Sport',         icon: '🏃', color: '#5bc17a' },
-  { id: 'sociaal',   label: 'Sociaal',       icon: '👥', color: '#c15b8a' },
-  { id: 'lezen',     label: 'Lezen',         icon: '📖', color: '#8a5bc1' },
-  { id: 'schermen',  label: 'Schermen/TV',   icon: '📺', color: '#5b9ac1' },
-  { id: 'vrij',      label: 'Vrije tijd',    icon: '☁️',  color: '#a0a060' },
+  { id: 'slaap',    label: 'Slapen',   icon: '🌙', color: '#4a6fa5' },
+  { id: 'routine',  label: 'Routine',  icon: '🚿', color: '#7a8fa0' },
+  { id: 'werk',     label: 'Werk',     icon: '💼', color: '#5b8a6f' },
+  { id: 'reis',     label: 'Reizen',   icon: '🚂', color: '#8a7a5b' },
+  { id: 'hobby',    label: 'Hobby',    icon: '📷', color: '#c17a5b' },
+  { id: 'project',  label: 'Project',  icon: '🗞', color: '#9b5bc1' },
+  { id: 'actief',   label: 'Actief',   icon: '🏃', color: '#5bc17a' },
+  { id: 'sociaal',  label: 'Sociaal',  icon: '👥', color: '#c15b8a' },
+  { id: 'lezen',    label: 'Lezen',    icon: '📖', color: '#8a5bc1' },
+  { id: 'schermen', label: 'Schermen', icon: '📺', color: '#5b9ac1' },
 ];
 const SHORT = ['ma','di','wo','do','vr','za','zo'];
 const LONG  = ['Maandag','Dinsdag','Woensdag','Donderdag','Vrijdag','Zaterdag','Zondag'];
@@ -271,6 +269,8 @@ function renderLegend() {
 }
 
 // ---- DAY ----
+let savedScrollTop = null; // bewaar scrollpositie tussen renders
+
 function renderDay(scrollTo = null) {
   const key = dayKey(dayIdx);
   const slots = load(key);
@@ -282,6 +282,11 @@ function renderDay(scrollTo = null) {
   document.querySelector('[data-view="day"]').textContent = SHORT[dayIdx];
 
   const tl = document.getElementById('dayTimeline');
+
+  // Bewaar huidige scrollpositie als we alleen verversen (geen expliciete scrollTo)
+  const preserveScroll = scrollTo === null && savedScrollTop !== null;
+  const scrollY = preserveScroll ? savedScrollTop : null;
+
   tl.innerHTML = '';
 
   for (let h = 0; h < 24; h++) {
@@ -310,7 +315,10 @@ function renderDay(scrollTo = null) {
       tl2.className = 'slot-time';
       tl2.textContent = String(h).padStart(2,'0')+':'+(half===0?'00':'30');
       slot.appendChild(tl2);
-      slot.addEventListener('click', () => openPicker(key, si));
+      slot.addEventListener('click', () => {
+        savedScrollTop = main.scrollTop; // sla op vóór picker opent
+        openPicker(key, si);
+      });
       row.appendChild(slot);
     });
 
@@ -318,15 +326,25 @@ function renderDay(scrollTo = null) {
     tl.appendChild(grp);
   }
 
-  // Scroll
+  // Scroll logica
   setTimeout(() => {
-    if (scrollTo !== null) {
+    if (scrollY !== null) {
+      // Herstel exacte scrollpositie na invullen
+      main.scrollTop = scrollY;
+    } else if (scrollTo !== null) {
+      // Scroll naar specifiek slot (vanuit weekoverzicht)
       document.getElementById('s'+scrollTo)?.scrollIntoView({behavior:'smooth', block:'center'});
-    } else if (key === new Date().toISOString().slice(0,10)) {
-      const h = Math.max(0, new Date().getHours() - 1);
-      document.getElementById('h'+h)?.scrollIntoView({behavior:'smooth', block:'start'});
     } else {
-      tl.scrollTop = 0;
+      // Eerste keer openen: scroll naar laatste ingevulde slot, of huidig uur
+      const lastFilled = [...slots].reverse().findIndex(s => s !== null);
+      const lastIdx = lastFilled >= 0 ? 47 - lastFilled : null;
+      if (lastIdx !== null) {
+        document.getElementById('s'+lastIdx)?.scrollIntoView({behavior:'smooth', block:'center'});
+      } else if (key === today) {
+        const h = Math.max(0, new Date().getHours() - 1);
+        document.getElementById('h'+h)?.scrollIntoView({behavior:'smooth', block:'start'});
+      }
+      savedScrollTop = null;
     }
   }, 60);
 }
@@ -446,13 +464,13 @@ function exportCSV(allData) {
 
 // ---- EVENTS ----
 document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => switchView(t.dataset.view)));
-document.getElementById('prevWeek').addEventListener('click', () => { weekOffset--; view==='week'?renderWeek():renderDay(); });
-document.getElementById('nextWeek').addEventListener('click', () => { weekOffset++; view==='week'?renderWeek():renderDay(); });
+document.getElementById('prevWeek').addEventListener('click', () => { weekOffset--; view==='week'?renderWeek():view==='day'?renderDay():renderAnalyse(); });
+document.getElementById('nextWeek').addEventListener('click', () => { weekOffset++; view==='week'?renderWeek():view==='day'?renderDay():renderAnalyse(); });
 document.getElementById('prevDay').addEventListener('click', () => {
-  dayIdx = (dayIdx - 1 + 7) % 7; renderDay();
+  dayIdx = (dayIdx - 1 + 7) % 7; savedScrollTop = null; renderDay();
 });
 document.getElementById('nextDay').addEventListener('click', () => {
-  dayIdx = (dayIdx + 1) % 7; renderDay();
+  dayIdx = (dayIdx + 1) % 7; savedScrollTop = null; renderDay();
 });
 document.getElementById('backBtn').addEventListener('click', () => switchView('week'));
 document.getElementById('todayBtn').addEventListener('click', () => {
@@ -463,6 +481,7 @@ document.getElementById('exportWeek').addEventListener('click', () => exportCSV(
 document.getElementById('exportAll').addEventListener('click', () => exportCSV(true));
 
 // ---- INIT ----
+const main = document.querySelector('main');
 renderWeek();
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
 </script>
